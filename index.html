@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Boat Controller</title>
+    <style>
+        body {
+            margin: 0px;
+            padding: 0px;
+        }
+
+        .game-area {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 200px;
+        }
+
+        .manual-controls {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: center;
+            gap: 30px;
+            font-weight: bold;
+            font-size: x-large;
+        }
+
+        .thruster {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .slider-box {
+            width: 100px;
+            height: 10px;
+            background: #d3d3d3;
+            outline: none;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+
+        #left-thruster,
+        #right-thruster {
+            width: 0%;
+            height: 100%;
+            background: #04AA6D;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="game-area">
+        <svg id="ship" width="800px" height="800px" viewBox="-0.03 0 20.053 20.053" xmlns="http://www.w3.org/2000/svg">
+            <g transform="translate(-2 -1.974)">
+                <path id="secondary" fill="#2ca9bc"
+                    d="M9,7.74a5.49,5.49,0,0,1,2.45-4.57h0a1,1,0,0,1,1.1,0h0A5.49,5.49,0,0,1,15,7.74v8.52a5.49,5.49,0,0,1-2.45,4.57h0a1,1,0,0,1-1.1,0h0A5.49,5.49,0,0,1,9,16.26Z" />
+                <path id="primary"
+                    d="M9,7.74a5.49,5.49,0,0,1,2.45-4.57h0a1,1,0,0,1,1.1,0h0A5.49,5.49,0,0,1,15,7.74v8.52a5.49,5.49,0,0,1-2.45,4.57h0a1,1,0,0,1-1.1,0h0A5.49,5.49,0,0,1,9,16.26ZM5,12H19m2,1H20a1,1,0,0,1-1-1h0a1,1,0,0,1,1-1h1ZM3,11H4a1,1,0,0,1,1,1H5a1,1,0,0,1-1,1H3Z"
+                    fill="none" stroke="#000000" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" />
+                <rect x="11.5" y="2.5" width="1" height="1" fill="#ff0000" stroke-width="1" />
+            </g>
+        </svg>
+        <div class="manual-controls">
+            <div class="thruster">
+                Left Thruster
+                <div class="slider-box">
+                    <div id="left-thruster"></div>
+                </div>
+            </div>
+            <div class="thruster">
+                Right Thruster
+                <div class="slider-box">
+                    <div id="right-thruster"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let controllerIndex = null;
+        let leftThruster = 0;
+        let rightThruster = 0;
+
+        window.addEventListener("gamepadconnected", (event) => {
+            controllerIndex = event.gamepad.index;
+            console.log("connected");
+        });
+
+        window.addEventListener("gamepaddisconnected", (event) => {
+            console.log("disconnected");
+            controllerIndex = null;
+        });
+
+        function controllerInput() {
+            if (controllerIndex !== null) {
+                const gamepad = navigator.getGamepads()[controllerIndex];
+
+                const buttons = gamepad.buttons;
+
+                leftThruster = buttons[6].value;
+                rightThruster = buttons[7].value;
+            }
+        }
+
+        function movePlayer() {
+            const ship = document.getElementById("ship");
+            if (leftThruster > 0 && rightThruster > 0) {
+                ship.style.transform = `rotate(0deg)`;
+            } else if (leftThruster > 0) {
+                ship.style.transform = `rotate(45deg)`;
+            } else if (rightThruster > 0) {
+                ship.style.transform = `rotate(-45deg)`;
+            } else {
+                ship.style.transform = `rotate(0deg)`;
+            }
+        }
+
+        function updateSlider() {
+            const leftSlider = document.querySelector("#left-thruster");
+            const rightSlider = document.querySelector("#right-thruster");
+            leftSlider.style.width = `${leftThruster * 100}%`;
+            rightSlider.style.width = `${rightThruster * 100}%`;
+        }
+
+        function gameLoop() {
+            controllerInput();
+            updateSlider();
+            movePlayer();
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    </script>
+</body>
+
+</html>
