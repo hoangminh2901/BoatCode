@@ -1,5 +1,6 @@
 #include <WiFi.h>
 #include <WebServer.h>
+#include <ArduinoJson.h>
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BNO055.h>
@@ -53,11 +54,8 @@ void setup()
   Serial.println(WiFi.softAPIP());
 
   server.on("/", handle_OnConnect);
-  server.on("/stop", handle_stop);
   server.on("/getHeading", handle_getHeading);
-  server.on("/motor1On", handle_motor1On);
-  server.on("/motor2On", handle_motor2On);
-  server.on("/bothMotorsOn", handle_bothMotorsOn);
+  server.on("/speed", handle_setThrusters);
   server.onNotFound(handle_NotFound);
 
   server.begin();
@@ -97,58 +95,36 @@ void handle_NotFound()
   server.send(404, "text/plain", "Not found");
 }
 
-void handle_motor1On()
+void handle_setThrusters()
 {
-  moveMotor1(1);
-  motor1StartTime = millis();
-  isMotor1Running = true;
-  server.send(200, "text/plain", "Motor 1 is ON");
-}
+  if (server.hasArg("plain")) {
+    StaticJsonDocument<200> doc;
+    DeserializationError error = deserializeJson(doc, server.arg("plain"));
 
-void handle_motor2On()
-{
-  moveMotor2(1);
-  motor2StartTime = millis();
-  isMotor2Running = true;
-  server.send(200, "text/plain", "Motor 2 is ON");
-}
+    if (!error) {
+      int leftSpeed = doc["left"];
+      int rightSpeed = doc["right"];
 
-void handle_bothMotorsOn()
-{
-  moveMotor1(1);
-  moveMotor2(1);
-  motor1StartTime = millis();
-  motor2StartTime = millis();
-  isMotor1Running = true;
-  isMotor2Running = true;
-  server.send(200, "text/plain", "Both Motors are ON");
-}
+      // Control motors based on trigger values
+      setMotorSpeed(M1_Left, M1_Right, leftSpeed);
+      setMotorSpeed(M2_Left, M2_Right, rightSpeed);
 
-void moveMotor1(int direction)
-{
-  if (direction == 1)
-  {
-    digitalWrite(M1_Left, HIGH);
-    digitalWrite(M1_Right, LOW);
-  }
-  else
-  {
-    digitalWrite(M1_Left, LOW);
-    digitalWrite(M1_Right, HIGH);
+      server.send(200, "text/plain", "OK");
+    } else {
+      server.send(400, "text/plain", "Invalid JSON");
+    }
+  } else {
+    server.send(400, "text/plain", "No data received");
   }
 }
 
-void moveMotor2(int direction)
-{
-  if (direction == 1)
-  {
-    digitalWrite(M2_Left, HIGH);
-    digitalWrite(M2_Right, LOW);
-  }
-  else
-  {
-    digitalWrite(M2_Left, LOW);
-    digitalWrite(M2_Right, HIGH);
+void setMotorSpeed(int fwdPin, int bwdPin, int speed) {
+  if (speed >= 0) {
+    analogWrite(fwdPin, speed);  // Forward
+    analogWrite(bwdPin, 0);      // No backward
+  } else {
+    analogWrite(fwdPin, 0);          // No forward
+    analogWrite(bwdPin, -speed);     // Backward (convert negative to positive)
   }
 }
 
