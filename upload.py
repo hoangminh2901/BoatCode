@@ -1,5 +1,6 @@
 import subprocess
 
+print("Copy index.html to WebPage.h...")
 with open("index.html", "r") as html_file:
     with open("WebPage.h", "w") as h_file:
         h_file.write('const char PAGE_MAIN[] PROGMEM = R"=====(')
@@ -7,7 +8,7 @@ with open("index.html", "r") as html_file:
         h_file.write(')=====";')
 
 compiled = subprocess.run(["arduino-cli", "compile", "--fqbn",
-               "esp32:esp32:uPesy_wroom", "BoatCode.ino"])
+            "esp32:esp32:uPesy_wroom", "BoatCode.ino"])
 if (compiled.returncode):
     print("Compilation failed!")
     exit(1)

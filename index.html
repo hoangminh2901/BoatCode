@@ -2,11 +2,26 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Boat Controller</title>
+    <title>Boat Control</title>
+    <meta charset='UTF-8'>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 18px;
+            margin: 10px;
+        }
+
         body {
             margin: 0px;
             padding: 0px;
@@ -56,8 +71,40 @@
     </style>
 </head>
 
+
 <body>
-    <div class="game-area">
+    <h1>Welcome to Boat Control</h1>
+    <h2>Boat Heading: <span id='headingDisplay'>0</span>°</h2>
+    <p>
+        <a href='/motor1On'>
+            <button style='background-color: #4CAF50; color: white;'>
+                Turn Motor 1 ON
+            </button>
+        </a>
+    </p>
+    <p>
+        <a href='/motor2On'>
+            <button style='background-color: #2196F3; color: white;'>
+                Turn Motor 2 ON
+            </button>
+        </a>
+    </p>
+    <p>
+        <a href='/bothMotorsOn'>
+            <button style='background-color: #FF9800; color: white;'>
+                Turn Both Motors ON
+            </button>
+        </a>
+    </p>
+    <p>
+        <a href='/stop'>
+            <button style='background-color: #f44336; color: white;'>
+                Stop All
+            </button>
+        </a>
+    </p>
+
+    <!-- <div class="game-area">
         <svg id="ship" width="800px" height="800px" viewBox="-0.03 0 20.053 20.053" xmlns="http://www.w3.org/2000/svg">
             <g transform="translate(-2 -1.974)">
                 <path id="secondary" fill="#2ca9bc"
@@ -82,8 +129,17 @@
                 </div>
             </div>
         </div>
-    </div>
+    </div> -->
 
+    <script>
+        setInterval(function () {
+            fetch('/getHeading').then(function (response) { return response.json(); }).then(function (data) {
+                document.getElementById('headingDisplay').innerText = data.heading;
+            });
+        }, 1000);
+    </script>
+
+    <!--
     <script>
         let controllerIndex = null;
         let leftThruster = 0;
@@ -138,7 +194,7 @@
         }
 
         gameLoop();
-    </script>
+    </script> -->
 </body>
 
 </html>
