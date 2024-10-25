@@ -73,7 +73,7 @@
 
 
 <body>
-    <h1>Welcome to Boat Control</h1>
+    <!-- <h1>Welcome to Boat Control</h1>
     <h2>Boat Heading: <span id='headingDisplay'>0</span>°</h2>
     <p>
         <a href='/motor1On'>
@@ -102,9 +102,9 @@
                 Stop All
             </button>
         </a>
-    </p>
+    </p> -->
 
-    <!-- <div class="game-area">
+    <div class="game-area">
         <svg id="ship" width="800px" height="800px" viewBox="-0.03 0 20.053 20.053" xmlns="http://www.w3.org/2000/svg">
             <g transform="translate(-2 -1.974)">
                 <path id="secondary" fill="#2ca9bc"
@@ -129,21 +129,13 @@
                 </div>
             </div>
         </div>
-    </div> -->
+    </div>
 
-    <script>
-        setInterval(function () {
-            fetch('/getHeading').then(function (response) { return response.json(); }).then(function (data) {
-                document.getElementById('headingDisplay').innerText = data.heading;
-            });
-        }, 1000);
-    </script>
-
-    <!--
     <script>
         let controllerIndex = null;
         let leftThruster = 0;
         let rightThruster = 0;
+        let orientation = 0;
 
         window.addEventListener("gamepadconnected", (event) => {
             controllerIndex = event.gamepad.index;
@@ -166,17 +158,12 @@
             }
         }
 
-        function movePlayer() {
+        function updateRotation() {
+            fetch('/getHeading').then(function (response) { return response.json(); }).then(function (data) {
+                orientation = data.heading;
+            });
             const ship = document.getElementById("ship");
-            if (leftThruster > 0 && rightThruster > 0) {
-                ship.style.transform = `rotate(0deg)`;
-            } else if (leftThruster > 0) {
-                ship.style.transform = `rotate(45deg)`;
-            } else if (rightThruster > 0) {
-                ship.style.transform = `rotate(-45deg)`;
-            } else {
-                ship.style.transform = `rotate(0deg)`;
-            }
+            ship.style.transform = `rotate(${orientation}deg)`;
         }
 
         function updateSlider() {
@@ -189,12 +176,12 @@
         function gameLoop() {
             controllerInput();
             updateSlider();
-            movePlayer();
-            requestAnimationFrame(gameLoop);
+            updateRotation();
+            setTimeout(gameLoop, 100);
         }
 
         gameLoop();
-    </script> -->
+    </script>
 </body>
 
 </html>

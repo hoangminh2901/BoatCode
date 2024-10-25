@@ -7,6 +7,7 @@ with open("index.html", "r") as html_file:
         h_file.write(html_file.read())
         h_file.write(')=====";')
 
+print("Compiling...")
 compiled = subprocess.run(["arduino-cli", "compile", "--fqbn",
             "esp32:esp32:uPesy_wroom", "BoatCode.ino"])
 if (compiled.returncode):
