@@ -44,11 +44,11 @@
             font-family: monospace;
         }
 
-        .controls-container {
+        .main-display {
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 200px;
+            gap: 300px;
         }
 
         .rotation-display {
@@ -63,7 +63,15 @@
             padding: 10px;
         }
 
-        .manual-controls {
+        .controls {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 200px;
+        }
+
+        .control-box {
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -73,24 +81,39 @@
             font-size: x-large;
         }
 
-        #both-on {
-            display: flex;
-            flex-direction: row;
-            justify-content: center;
-            align-items: center;
-            gap: 30px;
+        .control-box>button {
             font-weight: bold;
             font-size: x-large;
+            border: 2px solid black;
         }
 
+        #both-on {
+            background-color: green;
+        }
+
+        #both-on:active {
+            background-color: darkgreen;
+        }
+
+        #both-off {
+            background-color: red;
+        }
+
+        #both-off:active {
+            background-color: darkred;
+        }
+
+        #pid:active {
+            background-color: darkgray;
+        }
     </style>
 </head>
 
 <body>
     <div class="container">
         <h1>Boat Control</h1>
-        <div id="status">No gamepad detected</div>
-        <div class="controls-container">
+        <button id="connect" type="button" onclick="handleConnect()">Connect to Server</button>
+        <div class="main-display">
             <div class="rotation-display">
                 <span id="rotation">Rotation: -°</span>
                 <svg id="ship" width="800px" height="800px" viewBox="-0.03 0 20.053 20.053"
@@ -106,15 +129,53 @@
                     </g>
                 </svg>
             </div>
-            <div class="manual-controls">
-                <h2>Manual Control</h2>
-                <button id="both-on" type="button" onclick="handleStraight()">Turn Both Motor ON</button>
+            <div class="controls">
+                <div class="control-box">
+                    <h2>Auto Drive</h2>
+                    <button id="pid" type="button" onclick="handleAutoDrive()">
+                        Turn on Auto Drive
+                    </button>
+                </div>
+                <div class="control-box">
+                    <h2>Manual Control</h2>
+                    <button id="both-on" type="button" onclick="handleStraight()">
+                        Turn Both Motor ON
+                    </button>
+                    <button id="both-off" type="button" onclick="handleStop()">
+                        Turn Both Motor OFF
+                    </button>
+                </div>
             </div>
         </div>
     </div>
     <script>
-        let gamepad = null;
-        let isRunning = false;
+        async function sendServer(uri, params = {}) {
+            try {
+                const response = await fetch(uri);
+                if (response.status === 200) {
+                    console.log('Fetch successful');
+                } else {
+                    console.error('Failed to fetch');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        async function receiveServer(uri) {
+            try {
+                const response = await fetch(uri)
+                    .then(response => response.json());
+                if (response.status === 200) {
+                    console.log('Fetch successful');
+                    return response.json();
+                } else {
+                    console.error('Failed to fetch');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
 
         function updateSpeed(leftSpeed, rightSpeed) {
             if (leftSpeed <= 100) {
@@ -130,7 +191,7 @@
                 right: rightSpeed
             };
 
-            fetch('/speed', {
+            sendServer('/speed', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -139,76 +200,38 @@
             });
         }
 
-        function handleTriggers(gamepad) {
-            // Get trigger values
-            let leftTrigger = gamepad.buttons[6].value;  // L2/LT
-            let rightTrigger = gamepad.buttons[7].value;  // R2/RT
-
-            // Update display
-            const leftSlider = document.querySelector("#left-thruster");
-            const rightSlider = document.querySelector("#right-thruster");
-            leftSlider.style.width = `${leftTrigger * 100}%`;
-            rightSlider.style.width = `${rightTrigger * 100}%`;
-
-            let leftSpeed = Math.round(leftTrigger * 255);
-            let rightSpeed = Math.round(rightTrigger * 255);
-
-            updateSpeed(leftSpeed, rightSpeed);
+        async function handleAutoDrive() {
+            sendServer('/handle_goStraightWithPID');
         }
 
-        function updateRotation() {
-            fetch('/getHeading').then(function (response) { return response.json(); }).then(function (data) {
-                let rotation = data.heading;
-                let rotationElement = document.getElementById("rotation");
+        async function updateRotation() {
+            const data = await receiveServer('/getHeading');
+            if (data) {
+                const rotation = data.heading;
+                const rotationElement = document.getElementById("rotation");
                 rotationElement.textContent = `Rotation: ${rotation}°`;
                 const ship = document.getElementById("ship");
                 ship.style.transform = `rotate(${rotation}deg)`;
-            }).catch(function (error) {
-                console.error('Error:', error);
-            });
-        }
-
-        function handleGamepad() {
-            const gamepads = navigator.getGamepads();
-            gamepad = gamepads[0];
-
-            if (gamepad) {
-                document.getElementById('status').textContent = 'Gamepad Connected: ' + gamepad.id;
-            } else {
-                document.getElementById('status').textContent = 'No gamepad detected';
             }
         }
 
-        window.addEventListener("gamepadconnected", (e) => {
-            gamepad = e.gamepad;
-            document.getElementById('status').textContent = 'Gamepad Connected: ' + gamepad.id;
-            handleGamepad();
-        });
-
-        window.addEventListener("gamepaddisconnected", (e) => {
-            gamepad = null;
-            document.getElementById('status').textContent = 'Gamepad disconnected';
-            updateSpeed(0, 0);  // Stop motors when gamepad disconnects
-        });
+        function handleConnect() {
+            updateLoop();
+        }
 
         function handleStraight() {
-            if (!isRunning) {
-                updateSpeed(255, 255);
-            } else {
-                updateSpeed(0, 0);
-            }
-            isRunning = !isRunning;
+            updateSpeed(255, 255);
+        }
+
+        async function handleStop() {
+            sendServer('/handle_stop');
         }
 
         function updateLoop() {
-            if (gamepad) {
-                handleTriggers(gamepad);
-            }
             updateRotation();
             setTimeout(updateLoop, 100);
         }
 
-        updateLoop();
     </script>
 </body>
 
