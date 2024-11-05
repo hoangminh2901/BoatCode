@@ -33,6 +33,8 @@ float previousError = 0;
 float integral = 0;
 unsigned long lastTimePID = 0;
 bool isPIDActive = false;
+int leftSpeed = 0;
+int rightSpeed = 0;
 
 void setup()
 {
@@ -57,6 +59,7 @@ void setup()
 
 	server.on("/", handle_OnConnect);
 	server.on("/getHeading", handle_getHeading);
+	server.on("/getThrusters", handle_getThrusters);
 	server.on("/speed", handle_setThrusters);
 	server.on("/stop", handle_stop);
 	server.on("/goStraightWithPID", handle_goStraightWithPID);
@@ -80,6 +83,8 @@ void handle_stop()
 {
 	stopMotor1();
 	stopMotor2();
+	leftSpeed = 0;
+	rightSpeed = 0;
 	isPIDActive = false;
 	server.send(200, "text/plain", "The boat stopped running");
 }
@@ -130,8 +135,8 @@ void handle_setThrusters()
 
 		if (!error)
 		{
-			int leftSpeed = doc["left"];
-			int rightSpeed = doc["right"];
+			leftSpeed = doc["left"];
+			rightSpeed = doc["right"];
 
 			// Control motors based on trigger values
 			setThrusters(leftSpeed, rightSpeed);
@@ -163,11 +168,19 @@ void handle_getHeading()
 	server.send(200, "application/json", jsonResponse);
 }
 
+void handle_getThrusters()
+{
+	String jsonResponse = "{\"left\": " + String(leftSpeed) + ", \"right\": " + String(rightSpeed) + "}";
+	server.send(200, "application/json", jsonResponse);
+}
+
 void handlePIDControl(float targetHeading)
 {
 	isPIDActive = true;
 	while (isPIDActive)
 	{
+		server.handleClient();
+
 		// Get the current heading
 		float currentHeading = getHeading();
 
@@ -199,12 +212,12 @@ void handlePIDControl(float targetHeading)
 		float output = Kp * error + Ki * integral + Kd * derivative;
 
 		// Adjust motor speeds based on the PID output
-		int baseSpeed = 200;									 // base motor speed
-		int speedMotor1 = constrain(baseSpeed + output, 0, 255); // left motor speed
-		int speedMotor2 = constrain(baseSpeed - output, 0, 255); // right motor speed
+		int baseSpeed = 240;									 // base motor speed
+		leftSpeed = constrain(baseSpeed + output, 0, 255); // left motor speed
+		rightSpeed = constrain(baseSpeed - output, 0, 255); // right motor speed
 
 		// Move both motors forward with adjusted speeds
-		setThrusters(speedMotor1, speedMotor2);
+		setThrusters(leftSpeed, rightSpeed);
 
 		Serial.print("Heading: ");
 		Serial.print(currentHeading);
@@ -213,16 +226,16 @@ void handlePIDControl(float targetHeading)
 		Serial.print(" | Error: ");
 		Serial.print(error);
 		Serial.print(" | Motor1 Speed: ");
-		Serial.print(speedMotor1);
+		Serial.print(leftSpeed);
 		Serial.print(" | Motor2 Speed: ");
-		Serial.println(speedMotor2);
-		server.handleClient();
+		Serial.println(rightSpeed);
 
 		// If a stop request has been processed, break out of the loop
 		if (!isPIDActive)
 		{
 			break; // Exit the PID loop when stop is called
 		}
+		delay(100);
 	}
 }
 

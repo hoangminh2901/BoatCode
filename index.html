@@ -46,9 +46,8 @@
 
         .main-display {
             display: flex;
-            justify-content: center;
+            justify-content: space-around;
             align-items: center;
-            gap: 300px;
         }
 
         .rotation-display {
@@ -66,9 +65,7 @@
         .controls {
             display: flex;
             flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            gap: 200px;
+            gap: 100px;
         }
 
         .control-box {
@@ -76,7 +73,6 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            gap: 30px;
             font-weight: bold;
             font-size: x-large;
         }
@@ -85,6 +81,29 @@
             font-weight: bold;
             font-size: x-large;
             border: 2px solid black;
+        }
+
+        .thruster {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .slider-box {
+            width: 100px;
+            height: 10px;
+            background: #d3d3d3;
+            outline: none;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+
+        #left-thruster,
+        #right-thruster {
+            width: 0%;
+            height: 100%;
+            background: #04AA6D;
         }
 
         #both-on {
@@ -130,6 +149,22 @@
                 </svg>
             </div>
             <div class="controls">
+                <div class="thrusters-container">
+                    <div class="thruster">
+                        <h2>Left Thruster:</h2>
+                        <p><span id="leftspan">0</span>%</p>
+                        <div class="slider-box">
+                            <div id="left-thruster"></div>
+                        </div>
+                    </div>
+                    <div class="thruster">
+                        <h2>Right Thruster:</h2>
+                        <p><span id="rightspan">0</span>%</p>
+                        <div class="slider-box">
+                            <div id="right-thruster"></div>
+                        </div>
+                    </div>
+                </div>
                 <div class="control-box">
                     <h2>Auto Drive</h2>
                     <button id="pid" type="button" onclick="handleAutoDrive()">
@@ -152,9 +187,7 @@
         async function sendServer(uri, params = {}) {
             try {
                 const response = await fetch(uri, params);
-                if (response.status === 200) {
-                    console.log('Fetch successful');
-                } else {
+                if (response.status !== 200) {
                     console.error(`Failed to fetch:${response.text}`);
                 }
             } catch (error) {
@@ -166,7 +199,6 @@
             try {
                 const response = await fetch(uri);
                 if (response.status === 200) {
-                    console.log('Fetch successful');
                     return response.json();
                 } else {
                     console.error(`Failed to fetch:${response.status}`);
@@ -199,11 +231,11 @@
             });
         }
 
-        async function handleAutoDrive() {
+        function handleAutoDrive() {
             sendServer('/goStraightWithPID');
         }
 
-        async function updateRotation() {
+        async function getRotation() {
             const data = await receiveServer('/getHeading');
             if (data) {
                 const rotation = data.heading;
@@ -215,20 +247,40 @@
         }
 
         function handleConnect() {
-            updateLoop();
+            setInterval(updateLoop, 200);
         }
 
         function handleStraight() {
             updateSpeed(255, 255);
         }
 
-        async function handleStop() {
+        function handleStop() {
             sendServer('/stop');
         }
 
+        function getThrusters() {
+            receiveServer('/getThrusters').then(data => {
+                if (!data) {
+                    return;
+                }
+                const leftSpeed = Math.round(data.left / 255 * 100);
+                const rightSpeed = Math.round(data.right / 255 * 100);
+
+                const leftThruster = document.getElementById("left-thruster");
+                const rightThruster = document.getElementById("right-thruster");
+                leftThruster.style.width = `${leftSpeed}%`;
+                rightThruster.style.width = `${rightSpeed}%`;
+
+                const leftSpan = document.getElementById("leftspan");
+                const rightSpan = document.getElementById("rightspan");
+                leftSpan.textContent = leftSpeed;
+                rightSpan.textContent = rightSpeed;
+            });
+        }
+
         function updateLoop() {
-            updateRotation();
-            setTimeout(updateLoop, 100);
+            getThrusters();
+            getRotation();
         }
 
     </script>
