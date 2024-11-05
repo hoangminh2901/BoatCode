@@ -25,12 +25,13 @@ int M2_Right = 13;
 TwoWire I2CBNO = TwoWire(0);
 Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x29, &I2CBNO);
 
-const Kp = 0.5;
-const Ki = 0.001;
-const Kd = 0.01;
+const float Kp = 0.5;
+const float Ki = 0.001;
+const float Kd = 0.01;
 
 float previousError = 0;
 float integral = 0;
+unsigned long lastTimePID = 0;
 bool isPIDActive = false;
 
 void setup()
@@ -58,6 +59,7 @@ void setup()
 	server.on("/getHeading", handle_getHeading);
 	server.on("/speed", handle_setThrusters);
 	server.on("/stop", handle_stop);
+	server.on("/goStraightWithPID", handle_goStraightWithPID);
 	server.onNotFound(handle_NotFound);
 
 	server.begin();
@@ -78,53 +80,25 @@ void handle_stop()
 {
 	stopMotor1();
 	stopMotor2();
-	server.send(200, "text/plain", "The submarine stopped running");
+	isPIDActive = false;
+	server.send(200, "text/plain", "The boat stopped running");
 }
 
 void stopMotor1()
 {
-	digitalWrite(M1_Left, LOW);
-	digitalWrite(M1_Right, LOW);
+	analogWrite(M1_Left, 0);
+	analogWrite(M1_Right, 0);
 }
 
 void stopMotor2()
 {
-	digitalWrite(M2_Left, LOW);
-	digitalWrite(M2_Right, LOW);
+	analogWrite(M2_Left, 0);
+	analogWrite(M2_Right, 0);
 }
 
 void handle_NotFound()
 {
 	server.send(404, "text/plain", "Not found");
-}
-
-void handle_setThrusters()
-{
-	if (server.hasArg("plain"))
-	{
-		StaticJsonDocument<200> doc;
-		DeserializationError error = deserializeJson(doc, server.arg("plain"));
-
-		if (!error)
-		{
-			int leftSpeed = doc["left"];
-			int rightSpeed = doc["right"];
-
-			// Control motors based on trigger values
-			setMotorSpeed(M1_Left, M1_Right, leftSpeed);
-			setMotorSpeed(M2_Left, M2_Right, rightSpeed);
-
-			server.send(200, "text/plain", "OK");
-		}
-		else
-		{
-			server.send(400, "text/plain", "Invalid JSON");
-		}
-	}
-	else
-	{
-		server.send(400, "text/plain", "No data received");
-	}
 }
 
 void setMotorSpeed(int fwdPin, int bwdPin, int speed)
@@ -141,29 +115,61 @@ void setMotorSpeed(int fwdPin, int bwdPin, int speed)
 	}
 }
 
-void handle_getHeading()
+void setThrusters(int leftSpeed, int rightSpeed)
+{
+	setMotorSpeed(M1_Left, M1_Right, leftSpeed);
+	setMotorSpeed(M2_Left, M2_Right, rightSpeed);
+}
+
+void handle_setThrusters()
+{
+	if (server.hasArg("plain"))
+	{
+		StaticJsonDocument<200> doc;
+		DeserializationError error = deserializeJson(doc, server.arg("plain"));
+
+		if (!error)
+		{
+			int leftSpeed = doc["left"];
+			int rightSpeed = doc["right"];
+
+			// Control motors based on trigger values
+			setThrusters(leftSpeed, rightSpeed);
+			server.send(200, "text/plain", "OK");
+		}
+		else
+		{
+			server.send(400, "text/plain", "Invalid JSON");
+		}
+	}
+	else
+	{
+		server.send(400, "text/plain", "No data received");
+	}
+}
+
+float getHeading()
 {
 	sensors_event_t event;
 	bno.getEvent(&event);
-	int heading = (int)event.orientation.x;
+	float heading = event.orientation.x;
+	return heading;
+}
+
+void handle_getHeading()
+{
+	int heading = (int)getHeading();
 	String jsonResponse = "{\"heading\": " + String(heading) + "}";
 	server.send(200, "application/json", jsonResponse);
 }
 
 void handlePIDControl(float targetHeading)
 {
-	float startTimePID = millis();
 	isPIDActive = true;
-	while (millis() - startTimePID <= motorDuration && isPIDActive)
+	while (isPIDActive)
 	{
-		motor1StartTime = millis();
-		motor2StartTime = millis();
-		isMotor1Running = true;
-		isMotor2Running = true;
 		// Get the current heading
-		sensors_event_t event;
-		bno.getEvent(&event);
-		float currentHeading = event.orientation.x;
+		float currentHeading = getHeading();
 
 		// Desired heading (initial heading when the command is given)
 		// static float targetHeading = currentHeading; // Keep the initial heading for reference
@@ -198,8 +204,7 @@ void handlePIDControl(float targetHeading)
 		int speedMotor2 = constrain(baseSpeed - output, 0, 255); // right motor speed
 
 		// Move both motors forward with adjusted speeds
-		moveMotor1(1, speedMotor1);
-		moveMotor2(1, speedMotor2);
+		setThrusters(speedMotor1, speedMotor2);
 
 		Serial.print("Heading: ");
 		Serial.print(currentHeading);
@@ -211,15 +216,6 @@ void handlePIDControl(float targetHeading)
 		Serial.print(speedMotor1);
 		Serial.print(" | Motor2 Speed: ");
 		Serial.println(speedMotor2);
-
-		/**
-		if (isMotor1Running && (currentTime - motor1StartTime >= motorDuration)) {
-		   stopMotor1();
-		   isMotor1Running = false;}
-
-		if (isMotor2Running && (currentTime - motor2StartTime >= motorDuration)) {
-		   stopMotor2();
-		   isMotor2Running = false;} **/
 		server.handleClient();
 
 		// If a stop request has been processed, break out of the loop
@@ -232,12 +228,8 @@ void handlePIDControl(float targetHeading)
 
 void handle_goStraightWithPID()
 {
-	// Activate PID control
-	isPIDActive = true;
-	sensors_event_t event;
-	bno.getEvent(&event);
-	float targetHeading = event.orientation.x;
-	lastTimePID = millis(); // Reset the PID timing
+	float targetHeading = getHeading();
+	lastTimePID = millis();
 	handlePIDControl(targetHeading);
 	server.send(200, "text/plain", "PID Control started");
 	Serial.println("CHECK");

@@ -151,11 +151,11 @@
     <script>
         async function sendServer(uri, params = {}) {
             try {
-                const response = await fetch(uri);
+                const response = await fetch(uri, params);
                 if (response.status === 200) {
                     console.log('Fetch successful');
                 } else {
-                    console.error('Failed to fetch');
+                    console.error(`Failed to fetch:${response.text}`);
                 }
             } catch (error) {
                 console.error('Error:', error);
@@ -164,13 +164,12 @@
 
         async function receiveServer(uri) {
             try {
-                const response = await fetch(uri)
-                    .then(response => response.json());
+                const response = await fetch(uri);
                 if (response.status === 200) {
                     console.log('Fetch successful');
                     return response.json();
                 } else {
-                    console.error('Failed to fetch');
+                    console.error(`Failed to fetch:${response.status}`);
                 }
             } catch (error) {
                 console.error('Error:', error);
@@ -201,7 +200,7 @@
         }
 
         async function handleAutoDrive() {
-            sendServer('/handle_goStraightWithPID');
+            sendServer('/goStraightWithPID');
         }
 
         async function updateRotation() {
@@ -224,7 +223,7 @@
         }
 
         async function handleStop() {
-            sendServer('/handle_stop');
+            sendServer('/stop');
         }
 
         function updateLoop() {
